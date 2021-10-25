@@ -11,6 +11,7 @@ public class MainManager : MonoBehaviour
     public Rigidbody Ball;
 
     public Text ScoreText;
+    public Text BestScoreText;
     public GameObject GameOverText;
     
     private bool m_Started = false;
@@ -18,10 +19,29 @@ public class MainManager : MonoBehaviour
     
     private bool m_GameOver = false;
 
-    
+    private string BestScoreName;
+    private int BestScore = 0;
+    private string UserName = "";
+
+    public void SetInitData(string userName)
+    {
+        UserName = userName;
+    }
+
     // Start is called before the first frame update
     void Start()
     {
+        // 名前が未設定だったらUserとしておく
+        if (UserName.Length == 0)
+        {
+            UserName = "User";
+        }
+
+        // セーブロード
+        LoadSaveData();
+
+        SetBestScoreText();
+
         const float step = 0.6f;
         int perLine = Mathf.FloorToInt(4.0f / step);
         
@@ -36,6 +56,21 @@ public class MainManager : MonoBehaviour
                 brick.onDestroyed.AddListener(AddPoint);
             }
         }
+    }
+
+    void LoadSaveData()
+    {
+        var saveData = SaveDataUtils.Load();
+        if (saveData != null)
+        {
+            BestScoreName = saveData.BestScoreName;
+            BestScore = saveData.BestScore;
+        }
+    }
+
+    void SetBestScoreText()
+    {
+        BestScoreText.text = string.Format("Best Score : {0} : {1}", BestScoreName, BestScore);
     }
 
     private void Update()
@@ -57,7 +92,8 @@ public class MainManager : MonoBehaviour
         {
             if (Input.GetKeyDown(KeyCode.Space))
             {
-                SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+                SceneManager.sceneLoaded += SceneLoaded;
+                SceneManager.LoadScene("menu");
             }
         }
     }
@@ -72,5 +108,39 @@ public class MainManager : MonoBehaviour
     {
         m_GameOver = true;
         GameOverText.SetActive(true);
+
+        UpdateBestScore();
+    }
+
+    void UpdateBestScore()
+    {
+        if (BestScore < m_Points)
+        {
+            BestScore = m_Points;
+            BestScoreName = UserName;
+
+            SaveSaveData();
+        }
+    }
+
+    void SaveSaveData()
+    {
+        SaveData saveData = new SaveData();
+        saveData.BestScore = BestScore;
+        saveData.BestScoreName = BestScoreName;
+
+        SaveDataUtils.Save(saveData);
+    }
+
+    void SceneLoaded(Scene nextScene, LoadSceneMode mode)
+    {
+        // mainシーンのセットアップ
+        if (nextScene.name == "menu")
+        {
+            var menuUIManager = GameObject.Find("Canvas").GetComponent<MenuUIManager>();
+            menuUIManager.SetInitData(UserName);
+        }
+
+        SceneManager.sceneLoaded -= SceneLoaded;
     }
 }
